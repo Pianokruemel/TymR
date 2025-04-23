@@ -36,7 +36,14 @@ class ForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, createNotification(getString(R.string.loading_events)))
+        startForeground(
+            NOTIFICATION_ID,
+            createNotification(
+                title = getString(R.string.app_name),
+                content = getString(R.string.loading_events
+                )
+            )
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -64,7 +71,7 @@ class ForegroundService : Service() {
         notificationManager.createNotificationChannel(channel)
     }
 
-    private fun createNotification(content: String): Notification {
+    private fun createNotification(title: String, content: String): Notification {
         val pendingIntent = PendingIntent.getActivity(
             this,
             0,
@@ -73,7 +80,7 @@ class ForegroundService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.app_name))
+            .setContentTitle(title)
             .setContentText(content)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
@@ -116,6 +123,7 @@ class ForegroundService : Service() {
                 }
             } catch (e: Exception) {
                 // Log error
+                e.printStackTrace()
             }
         }
 
@@ -142,9 +150,8 @@ class ForegroundService : Service() {
             }
 
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.notify(NOTIFICATION_ID, createNotification(getString(R.string.no_events)))
+            notificationManager.notify(NOTIFICATION_ID, createNotification(title = getString(R.string.app_name), content = getString(R.string.no_events)))
         } else {
-            val now = Date()
             val isOngoing = event.isOngoing()
 
             val timeRemaining = if (isOngoing) {
@@ -178,7 +185,7 @@ class ForegroundService : Service() {
                 else -> "$minutes min"
             }
 
-            var notificationText = "${event.summary} - $status $timeRemainingStr"
+            var notificationText = "$status $timeRemainingStr"
             if (showDetails) {
                 notificationText += "\n$timeStr"
                 if (showLocation && !event.location.isNullOrEmpty()) {
@@ -187,7 +194,13 @@ class ForegroundService : Service() {
             }
 
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.notify(NOTIFICATION_ID, createNotification(notificationText))
+            notificationManager.notify(
+                NOTIFICATION_ID,
+                createNotification(
+                    title = event.summary,
+                    content = notificationText
+                )
+            )
         }
 
         // Update widget

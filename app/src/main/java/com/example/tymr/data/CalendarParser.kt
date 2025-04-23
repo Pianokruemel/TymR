@@ -13,7 +13,7 @@ data class CalendarEvent(
 ) {
     fun isOngoing(): Boolean {
         val now = Date()
-        return now >= startTime && now <= endTime
+        return now in startTime..endTime
     }
 
     fun isUpcoming(): Boolean {
@@ -30,11 +30,11 @@ data class CalendarEvent(
 }
 
 class CalendarParser {
-    private val icsDateFormat = SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.US).apply {
+    private val icsDateFormat = SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'", Locale.GERMAN).apply {
         timeZone = TimeZone.getTimeZone("UTC")
     }
 
-    private val icsDateFormatLocal = SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.US)
+    private val icsDateFormatLocal = SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.GERMAN)
 
     /**
      * Parse ICS file content and extract calendar events
@@ -89,13 +89,13 @@ class CalendarParser {
                     location = line.substringAfter("LOCATION:")
                 }
 
-                inEvent && line.startsWith("DTSTART:") -> {
-                    val dateStr = line.substringAfter("DTSTART:")
+                inEvent && line.startsWith("DTSTART") -> {
+                    val dateStr = line.substringAfter(":")
                     startTime = parseIcsDate(dateStr)
                 }
 
-                inEvent && line.startsWith("DTEND:") -> {
-                    val dateStr = line.substringAfter("DTEND:")
+                inEvent && line.startsWith("DTEND") -> {
+                    val dateStr = line.substringAfter(":")
                     endTime = parseIcsDate(dateStr)
                 }
             }
@@ -125,7 +125,7 @@ class CalendarParser {
         val now = Date()
 
         // First check for ongoing events
-        val currentEvent = events.firstOrNull { it.startTime <= now && it.endTime >= now }
+        val currentEvent = events.firstOrNull { now in it.startTime..it.endTime }
         if (currentEvent != null) {
             return currentEvent
         }
