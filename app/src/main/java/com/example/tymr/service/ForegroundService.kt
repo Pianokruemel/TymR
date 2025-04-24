@@ -146,6 +146,7 @@ class ForegroundService : Service() {
                 putString("current_title", getString(R.string.no_events))
                     .putString("current_time", "")
                     .putString("event_status", "")
+                    .putString("event_location", "")
                     .putLong("time_remaining", -1)
             }
 
@@ -168,12 +169,14 @@ class ForegroundService : Service() {
 
             val startTimeStr = dateFormat.format(event.startTime)
             val endTimeStr = dateFormat.format(event.endTime)
+            val location = event.location ?: ""
             val timeStr = "$startTimeStr - $endTimeStr"
 
             eventPrefs.edit() {
                 putString("current_title", event.summary)
                     .putString("current_time", timeStr)
                     .putString("event_status", status)
+                    .putString("event_location", location)
                     .putLong("time_remaining", timeRemaining)
             }
 

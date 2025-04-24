@@ -54,7 +54,7 @@ class CalendarWidgetProvider : AppWidgetProvider() {
             val prefs = context.getSharedPreferences("EventPrefs", Context.MODE_PRIVATE)
             val eventTitle = prefs.getString("current_title", context.getString(R.string.no_events))
             val eventTime = prefs.getString("current_time", "")
-            val eventStatus = prefs.getString("event_status", "")
+            val eventLocation = prefs.getString("event_location", "")
             val timeRemaining = prefs.getLong("time_remaining", -1)
 
             views.setTextViewText(R.id.widget_title, eventTitle)
@@ -68,8 +68,13 @@ class CalendarWidgetProvider : AppWidgetProvider() {
 
             // Show additional info based on user preferences
             val showDetails = prefs.getBoolean("show_details", true)
+            val showLocation = prefs.getBoolean("show_location", true)
             if (showDetails && eventTime?.isNotEmpty() == true) {
-                views.setTextViewText(R.id.widget_details, "$eventStatus\n$eventTime")
+                if (showLocation) {
+                    views.setTextViewText(R.id.widget_details, "$eventTime\n@ $eventLocation")
+                }else {
+                    views.setTextViewText(R.id.widget_details, eventTime)
+                }
                 views.setViewVisibility(R.id.widget_details, android.view.View.VISIBLE)
             } else {
                 views.setViewVisibility(R.id.widget_details, android.view.View.GONE)

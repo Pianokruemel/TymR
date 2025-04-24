@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.tymr.service.UpdateWorker
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.switchmaterial.SwitchMaterial
+import androidx.core.content.edit
 
 class MainActivity : AppCompatActivity() {
 
@@ -65,10 +66,10 @@ class MainActivity : AppCompatActivity() {
         val savedUrls = prefs.getStringSet("source_urls", emptySet())?.toMutableSet() ?: mutableSetOf()
         savedUrls.add(url)
 
-        prefs.edit()
-            .putStringSet("source_urls", savedUrls)
-            .putBoolean("active_$url", true)  // New sources are active by default
-            .apply()
+        prefs.edit() {
+            putStringSet("source_urls", savedUrls)
+                .putBoolean("active_$url", true)  // New sources are active by default
+        }
 
         sourceUrls.add(url)
         adapter.notifyItemInserted(sourceUrls.size - 1)
@@ -82,10 +83,10 @@ class MainActivity : AppCompatActivity() {
         val savedUrls = prefs.getStringSet("source_urls", emptySet())?.toMutableSet() ?: mutableSetOf()
         savedUrls.remove(url)
 
-        prefs.edit()
-            .putStringSet("source_urls", savedUrls)
-            .remove("active_$url")
-            .apply()
+        prefs.edit() {
+            putStringSet("source_urls", savedUrls)
+                .remove("active_$url")
+        }
 
         val index = sourceUrls.indexOf(url)
         if (index != -1) {
@@ -99,9 +100,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun saveSourceState(url: String, isActive: Boolean) {
         val prefs = getSharedPreferences("SourcePrefs", Context.MODE_PRIVATE)
-        prefs.edit()
-            .putBoolean("active_$url", isActive)
-            .apply()
+        prefs.edit() {
+            putBoolean("active_$url", isActive)
+        }
 
         // Trigger an update
         UpdateWorker.schedulePeriodicWork(this)
@@ -169,11 +170,11 @@ class MainActivity : AppCompatActivity() {
             .setTitle(getString(R.string.notification_settings))
             .setView(view)
             .setPositiveButton(getString(R.string.save)) { _, _ ->
-                val editor = prefs.edit()
-                editor.putBoolean("enable_notification", switchEnableNotification.isChecked)
-                editor.putBoolean("show_details", switchShowDetails.isChecked)
-                editor.putBoolean("show_location", switchShowLocation.isChecked)
-                editor.apply()
+                prefs.edit() {
+                    putBoolean("enable_notification", switchEnableNotification.isChecked)
+                    putBoolean("show_details", switchShowDetails.isChecked)
+                    putBoolean("show_location", switchShowLocation.isChecked)
+                }
 
                 // Update the service based on notification setting
                 val serviceIntent = Intent(this, com.example.tymr.service.ForegroundService::class.java)
