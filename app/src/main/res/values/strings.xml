@@ -2,22 +2,26 @@
     <string name="app_name">TymR</string>
     <string name="action_settings">Settings</string>
     <!-- Strings used for fragments for navigation -->
-    <string name="loading_events">Loading events…</string>
+    <string name="loading_events">Loading calendar events…</string>
     <string name="no_events">No upcoming events</string>
     <string name="starts_in">Starts in</string>
     <string name="ends_in">Ends in</string>
-    <string name="calendar_sources">Calendar Sources (ICS URLs)</string>
     <string name="add_calendar_source">Add Calendar Source</string>
     <string name="edit_calendar_source">Edit Calendar Source</string>
-    <string name="notification_settings">Notification Settings</string>
-    <string name="enable_notification">Enable Notification</string>
-    <string name="show_additional_details">Show Additional Details</string>
-    <string name="show_location">Show Location</string>
-    <string name="enter_ics_url">Enter ICS URL</string>
-    <string name="add">Add</string>
+    <string name="enter_ics_url">Enter ICS calendar URL</string>
     <string name="save">Save</string>
+    <string name="add">Add</string>
     <string name="cancel">Cancel</string>
     <string name="delete">Delete</string>
-    <string name="notification_channel_name">Calendar Events</string>
-    <string name="notification_channel_description">Shows upcoming and ongoing calendar events</string>
+    <string name="notification_settings">Notification Settings</string>
+    <string name="notification_channel_name">Calendar Updates</string>
+    <string name="notification_channel_description">Shows upcoming calendar events</string>
+    <string name="enable_notification">Enable notification</string>
+    <string name="show_details">Show time details</string>
+    <string name="show_additional_details">Show Additional Details</string>
+    <string name="show_location">Show location</string>
+    <string name="calendar_sources">Calendar Sources</string>
+    <string name="last_updated">Last updated: %1$s</string>
+    <string name="refresh_calendars">Refresh All</string>
+    <string name="refreshing_calendars">Refreshing calendars…</string>
 </resources>

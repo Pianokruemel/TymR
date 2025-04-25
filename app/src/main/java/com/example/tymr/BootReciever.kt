@@ -11,6 +11,7 @@ class BootReceiver : BroadcastReceiver() {
             // Check if notifications are enabled
             val prefs = context.getSharedPreferences("EventPrefs", Context.MODE_PRIVATE)
             if (prefs.getBoolean("enable_notification", true)) {
+                // Re-schedule our daily updates
                 UpdateWorker.schedulePeriodicWork(context)
             }
         }

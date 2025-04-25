@@ -30,7 +30,8 @@ class ForegroundService : Service() {
     companion object {
         private const val NOTIFICATION_ID = 1
         private const val CHANNEL_ID = "CalendarServiceChannel"
-        private const val UPDATE_INTERVAL = 60_000L // 1 minute
+        private const val UPDATE_INTERVAL = 60_000L // 1 minute for UI updates
+        private const val ONE_DAY_MILLIS = 24 * 60 * 60 * 1000L // 24 hours in milliseconds
     }
 
     override fun onCreate() {
@@ -40,15 +41,28 @@ class ForegroundService : Service() {
             NOTIFICATION_ID,
             createNotification(
                 title = getString(R.string.app_name),
-                content = getString(R.string.loading_events
-                )
+                content = getString(R.string.loading_events)
             )
         )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Start the periodic update job
-        startUpdateJob()
+        // Handle the intent action
+        if (intent?.action == "FORCE_UPDATE") {
+            val url = intent.getStringExtra("url")
+            if (url != null) {
+                serviceScope.launch {
+                    // Force update for a specific URL
+                    forceUpdateCalendar(url)
+                }
+            } else {
+                // Force update for all active URLs
+                startUpdateJob(true)
+            }
+        } else {
+            // Regular update
+            startUpdateJob(false)
+        }
         return START_STICKY
     }
 
@@ -89,17 +103,120 @@ class ForegroundService : Service() {
             .build()
     }
 
-    private fun startUpdateJob() {
+    private fun startUpdateJob(forceUpdate: Boolean) {
         updateJob?.cancel()
         updateJob = serviceScope.launch {
+            // First update
+            updateCalendarEvents(forceUpdate)
+
+            // Then schedule regular UI updates
             while (isActive) {
-                updateCalendarEvents()
+                // This will only update the UI with existing data, not fetch new data
+                updateNotificationAndWidgetFromCache()
                 delay(UPDATE_INTERVAL)
             }
         }
     }
 
-    private suspend fun updateCalendarEvents() {
+    private suspend fun updateCalendarEvents(forceUpdate: Boolean) {
+        val prefs = getSharedPreferences("SourcePrefs", Context.MODE_PRIVATE)
+        val sourceUrls = prefs.getStringSet("source_urls", emptySet()) ?: emptySet()
+        val activeUrls = sourceUrls.filter { url ->
+            prefs.getBoolean("active_$url", false)
+        }
+
+        if (activeUrls.isEmpty()) {
+            updateNotificationAndWidget(null)
+            return
+        }
+
+        val allEvents = mutableListOf<CalendarEvent>()
+        val lastUpdatePrefs = getSharedPreferences("LastUpdatePrefs", Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+
+        for (url in activeUrls) {
+            try {
+                val lastUpdateTime = lastUpdatePrefs.getLong("last_update_$url", 0)
+                val shouldUpdate = forceUpdate ||
+                        (now - lastUpdateTime > ONE_DAY_MILLIS) ||
+                        (lastUpdateTime == 0L)
+
+                if (shouldUpdate) {
+                    // Fetch new data
+                    val result = calendarFetcher.fetchCalendarData(url)
+                    if (result.isSuccess) {
+                        val icsContent = result.getOrThrow()
+                        val events = calendarParser.parseIcsContent(icsContent)
+                        allEvents.addAll(events)
+
+                        // Save to cache
+                        saveCalendarCache(url, icsContent)
+                        // Update last fetch time
+                        lastUpdatePrefs.edit {
+                            putLong("last_update_$url", now)
+                        }
+                    }
+                } else {
+                    // Use cached data
+                    val cachedData = loadCalendarCache(url)
+                    if (cachedData != null) {
+                        val events = calendarParser.parseIcsContent(cachedData)
+                        allEvents.addAll(events)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        val nextOrCurrentEvent = if (allEvents.isNotEmpty()) {
+            calendarParser.findNextOrCurrentEvent(allEvents)
+        } else {
+            null
+        }
+
+        updateNotificationAndWidget(nextOrCurrentEvent)
+    }
+
+    private suspend fun forceUpdateCalendar(url: String) {
+        try {
+            val prefs = getSharedPreferences("SourcePrefs", Context.MODE_PRIVATE)
+            if (prefs.getBoolean("active_$url", false)) {
+                val result = calendarFetcher.fetchCalendarData(url)
+                if (result.isSuccess) {
+                    val icsContent = result.getOrThrow()
+
+                    // Save to cache
+                    saveCalendarCache(url, icsContent)
+
+                    // Update last fetch time
+                    val lastUpdatePrefs = getSharedPreferences("LastUpdatePrefs", Context.MODE_PRIVATE)
+                    lastUpdatePrefs.edit {
+                        putLong("last_update_$url", System.currentTimeMillis())
+                    }
+
+                    // Update UI
+                    updateCalendarEvents(false)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun saveCalendarCache(url: String, data: String) {
+        val cachePrefs = getSharedPreferences("CalendarCachePrefs", Context.MODE_PRIVATE)
+        cachePrefs.edit {
+            putString("cache_$url", data)
+        }
+    }
+
+    private fun loadCalendarCache(url: String): String? {
+        val cachePrefs = getSharedPreferences("CalendarCachePrefs", Context.MODE_PRIVATE)
+        return cachePrefs.getString("cache_$url", null)
+    }
+
+    private fun updateNotificationAndWidgetFromCache() {
         val prefs = getSharedPreferences("SourcePrefs", Context.MODE_PRIVATE)
         val sourceUrls = prefs.getStringSet("source_urls", emptySet()) ?: emptySet()
         val activeUrls = sourceUrls.filter { url ->
@@ -115,14 +232,13 @@ class ForegroundService : Service() {
 
         for (url in activeUrls) {
             try {
-                val result = calendarFetcher.fetchCalendarData(url)
-                if (result.isSuccess) {
-                    val icsContent = result.getOrThrow()
-                    val events = calendarParser.parseIcsContent(icsContent)
+                // Use cached data
+                val cachedData = loadCalendarCache(url)
+                if (cachedData != null) {
+                    val events = calendarParser.parseIcsContent(cachedData)
                     allEvents.addAll(events)
                 }
             } catch (e: Exception) {
-                // Log error
                 e.printStackTrace()
             }
         }
@@ -142,7 +258,7 @@ class ForegroundService : Service() {
         val showLocation = eventPrefs.getBoolean("show_location", true)
 
         if (event == null) {
-            eventPrefs.edit() {
+            eventPrefs.edit {
                 putString("current_title", getString(R.string.no_events))
                     .putString("current_time", "")
                     .putString("event_status", "")
@@ -172,7 +288,7 @@ class ForegroundService : Service() {
             val location = event.location ?: ""
             val timeStr = "$startTimeStr - $endTimeStr"
 
-            eventPrefs.edit() {
+            eventPrefs.edit {
                 putString("current_title", event.summary)
                     .putString("current_time", timeStr)
                     .putString("event_status", status)
